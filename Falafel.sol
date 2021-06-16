@@ -6,6 +6,7 @@
 //Twitter: https://twitter.com/FalafelToken
 //Telegram: https://t.me/falafeltoken
 //Reddit: https://www.reddit.com/r/FalafelToken
+//GitHub: https://github.com/falafeltoken/falafellsmartcontract
 //Instagram: https://www.instagram.com/falafelcoin
 //Facebook: https://www.facebook.com/falafelcoin
 
@@ -467,9 +468,9 @@ contract Falafel is Context, IBEP20, Ownable {
 
     mapping (address => bool) private _isExcluded;
     mapping (address => bool) private _isExcludedFromFee;
-    mapping (address => bool) private _isCharity;
+    mapping (address => bool) private _isDonation;
     address[] private _excluded;
-    address private _charity = 0x02694bF1cCC82CBe5f2be117a168e829155d606c;
+    address private _DONATION = 0x2eB2AbaEB077952c923CE6f945fC621E54d5aadc;
     
     string  private constant _NAME = 'Falafel';
     string  private constant _SYMBOL = 'FALAFEL';
@@ -484,25 +485,25 @@ contract Falafel is Context, IBEP20, Ownable {
     
     uint256 private _tFeeTotal;
     uint256 private _tBurnTotal;
-    uint256 private _tCharityTotal;
+    uint256 private _tDonationTotal;
     
     uint256 private     _TAX_FEE = 300; // 3% BACK TO HOLDERS
-    uint256 private    _BURN_FEE = 50; // 0.5% BURNED
-    uint256 private _CHARITY_FEE = 50; // 0.5% TO CHARITY WALLET
+    uint256 private    _BURN_FEE = 100; // 1% BURNED
+    uint256 private _DONATION_FEE = 100; // 1% TO Donation WALLET
     uint256 private  _MAX_TX_SIZE = 1000000000 * 10**6 * _DECIMALFACTOR;
 
     // Store initial fees
     uint256 private ORIG_TAX_FEE = _TAX_FEE;
     uint256 private ORIG_BURN_FEE = _BURN_FEE;
-    uint256 private ORIG_CHARITY_FEE = _CHARITY_FEE;
+    uint256 private ORIG_DONATION_FEE = _DONATION_FEE;
 
     constructor () {
         _rOwned[_msgSender()] = _rTotal;
          _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
-        _isExcludedFromFee[_charity] = true;
-        _isExcluded[_charity] = true;
-        _isCharity[_charity] = true;
+        _isExcludedFromFee[_DONATION] = true;
+        _isExcluded[_DONATION] = true;
+        _isDonation[_DONATION] = true;
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
@@ -565,12 +566,12 @@ contract Falafel is Context, IBEP20, Ownable {
         return _isExcluded[account];
     }
     
-    function isCharity(address account) public view returns (bool) {
-        return _isCharity[account];
+    function isDonation(address account) public view returns (bool) {
+        return _isDonation[account];
     }
     
-    function charityAddress() public view returns (address) {
-        return _charity;
+    function DonationAddress() public view returns (address) {
+        return _DONATION;
     }
 
     function totalFees() public view returns (uint256) {
@@ -581,8 +582,8 @@ contract Falafel is Context, IBEP20, Ownable {
         return _tBurnTotal;
     }
     
-    function totalCharity() public view returns (uint256) {
-        return _tCharityTotal;
+    function totalDonation() public view returns (uint256) {
+        return _tDonationTotal;
     }
 
     function deliver(uint256 tAmount) public {
@@ -641,10 +642,10 @@ contract Falafel is Context, IBEP20, Ownable {
         _isExcludedFromFee[account] = false;
     }
 
-    function setAsCharityAccount(address account) external onlyOwner() {
-        require(account != 0x10ED43C718714eb63d5aA57B78B54704E256024E, 'The PancakeSwap router can not be the charity account.');
-        if(!_isCharity[account]){
-        _isCharity[account] = true;
+    function setAsDonationAccount(address account) external onlyOwner() {
+        require(account != 0x10ED43C718714eb63d5aA57B78B54704E256024E, 'The PancakeSwap router can not be the Donation account.');
+        if(!_isDonation[account]){
+        _isDonation[account] = true;
         }
         if(!_isExcluded[account]){
         _isExcluded[account] = true;
@@ -652,7 +653,7 @@ contract Falafel is Context, IBEP20, Ownable {
         if(!_isExcludedFromFee[account]){
         _isExcludedFromFee[account] = true;
         }
-        _charity=account;
+        _DONATION=account;
     }
     
     function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
@@ -663,8 +664,8 @@ contract Falafel is Context, IBEP20, Ownable {
         _BURN_FEE = burnFee;
     }
     
-    function setCharityFeePercent(uint256 charityFee) external onlyOwner() {
-        _CHARITY_FEE = charityFee;
+    function setDonationFeePercent(uint256 DonationFee) external onlyOwner() {
+        _DONATION_FEE = DonationFee;
     }
     
     function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
@@ -712,12 +713,12 @@ contract Falafel is Context, IBEP20, Ownable {
 
     function _transferStandard(address sender, address recipient, uint256 tAmount) private {
         uint256 currentRate =  _getRate();
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tCharity) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tDonation) = _getValues(tAmount);
         uint256 rBurn =  tBurn.mul(currentRate);
-        uint256 rCharity = tCharity.mul(currentRate);     
+        uint256 rDonation = tDonation.mul(currentRate);     
         _standardTransferContent(sender, recipient, rAmount, rTransferAmount);
-        _sendToCharity(tCharity, sender);
-        _reflectFee(rFee, rBurn, rCharity, tFee, tBurn, tCharity);
+        _sendToDonation(tDonation, sender);
+        _reflectFee(rFee, rBurn, rDonation, tFee, tBurn, tDonation);
         emit Transfer(sender, recipient, tTransferAmount);
     }
     
@@ -728,12 +729,12 @@ contract Falafel is Context, IBEP20, Ownable {
     
     function _transferToExcluded(address sender, address recipient, uint256 tAmount) private {
         uint256 currentRate =  _getRate();
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tCharity) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tDonation) = _getValues(tAmount);
         uint256 rBurn =  tBurn.mul(currentRate);
-        uint256 rCharity = tCharity.mul(currentRate);
+        uint256 rDonation = tDonation.mul(currentRate);
         _excludedFromTransferContent(sender, recipient, tTransferAmount, rAmount, rTransferAmount);        
-        _sendToCharity(tCharity, sender);
-        _reflectFee(rFee, rBurn, rCharity, tFee, tBurn, tCharity);
+        _sendToDonation(tDonation, sender);
+        _reflectFee(rFee, rBurn, rDonation, tFee, tBurn, tDonation);
         emit Transfer(sender, recipient, tTransferAmount);
     }
     
@@ -746,12 +747,12 @@ contract Falafel is Context, IBEP20, Ownable {
 
     function _transferFromExcluded(address sender, address recipient, uint256 tAmount) private {
         uint256 currentRate =  _getRate();
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tCharity) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tDonation) = _getValues(tAmount);
         uint256 rBurn =  tBurn.mul(currentRate);
-        uint256 rCharity = tCharity.mul(currentRate);
+        uint256 rDonation = tDonation.mul(currentRate);
         _excludedToTransferContent(sender, recipient, tAmount, rAmount, rTransferAmount);
-        _sendToCharity(tCharity, sender);
-        _reflectFee(rFee, rBurn, rCharity, tFee, tBurn, tCharity);
+        _sendToDonation(tDonation, sender);
+        _reflectFee(rFee, rBurn, rDonation, tFee, tBurn, tDonation);
         emit Transfer(sender, recipient, tTransferAmount);
     }
     
@@ -763,12 +764,12 @@ contract Falafel is Context, IBEP20, Ownable {
 
     function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
         uint256 currentRate =  _getRate();
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tCharity) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tBurn, uint256 tDonation) = _getValues(tAmount);
         uint256 rBurn =  tBurn.mul(currentRate);
-        uint256 rCharity = tCharity.mul(currentRate);    
+        uint256 rDonation = tDonation.mul(currentRate);    
         _bothTransferContent(sender, recipient, tAmount, rAmount, tTransferAmount, rTransferAmount);  
-        _sendToCharity(tCharity, sender);
-        _reflectFee(rFee, rBurn, rCharity, tFee, tBurn, tCharity);
+        _sendToDonation(tDonation, sender);
+        _reflectFee(rFee, rBurn, rDonation, tFee, tBurn, tDonation);
         emit Transfer(sender, recipient, tTransferAmount);
     }
     
@@ -779,33 +780,33 @@ contract Falafel is Context, IBEP20, Ownable {
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);  
     }
 
-    function _reflectFee(uint256 rFee, uint256 rBurn, uint256 rCharity, uint256 tFee, uint256 tBurn, uint256 tCharity) private {
-        _rTotal = _rTotal.sub(rFee).sub(rBurn).sub(rCharity);
+    function _reflectFee(uint256 rFee, uint256 rBurn, uint256 rDonation, uint256 tFee, uint256 tBurn, uint256 tDonation) private {
+        _rTotal = _rTotal.sub(rFee).sub(rBurn).sub(rDonation);
         _tFeeTotal = _tFeeTotal.add(tFee);
         _tBurnTotal = _tBurnTotal.add(tBurn);
-        _tCharityTotal = _tCharityTotal.add(tCharity);
+        _tDonationTotal = _tDonationTotal.add(tDonation);
         _tTotal = _tTotal.sub(tBurn);
     }
     
 
     function _getValues(uint256 tAmount) private view returns (uint256, uint256, uint256, uint256, uint256, uint256, uint256) {
-        (uint256 tFee, uint256 tBurn, uint256 tCharity) = _getTBasics(tAmount, _TAX_FEE, _BURN_FEE, _CHARITY_FEE);
-        uint256 tTransferAmount = getTTransferAmount(tAmount, tFee, tBurn, tCharity);
+        (uint256 tFee, uint256 tBurn, uint256 tDonation) = _getTBasics(tAmount, _TAX_FEE, _BURN_FEE, _DONATION_FEE);
+        uint256 tTransferAmount = getTTransferAmount(tAmount, tFee, tBurn, tDonation);
         uint256 currentRate =  _getRate();
         (uint256 rAmount, uint256 rFee) = _getRBasics(tAmount, tFee, currentRate);
-        uint256 rTransferAmount = _getRTransferAmount(rAmount, rFee, tBurn, tCharity, currentRate);
-        return (rAmount, rTransferAmount, rFee, tTransferAmount, tFee, tBurn, tCharity);
+        uint256 rTransferAmount = _getRTransferAmount(rAmount, rFee, tBurn, tDonation, currentRate);
+        return (rAmount, rTransferAmount, rFee, tTransferAmount, tFee, tBurn, tDonation);
     }
     
-    function _getTBasics(uint256 tAmount, uint256 taxFee, uint256 burnFee, uint256 charityFee) private pure returns (uint256, uint256, uint256) {
+    function _getTBasics(uint256 tAmount, uint256 taxFee, uint256 burnFee, uint256 DonationFee) private pure returns (uint256, uint256, uint256) {
         uint256 tFee = ((tAmount.mul(taxFee)).div(_GRANULARITY)).div( 100 );
         uint256 tBurn = ((tAmount.mul(burnFee)).div(_GRANULARITY)).div( 100 );
-        uint256 tCharity = ((tAmount.mul(charityFee)).div(_GRANULARITY)).div( 100 );
-        return (tFee, tBurn, tCharity);
+        uint256 tDonation = ((tAmount.mul(DonationFee)).div(_GRANULARITY)).div( 100 );
+        return (tFee, tBurn, tDonation);
     }
     
-    function getTTransferAmount(uint256 tAmount, uint256 tFee, uint256 tBurn, uint256 tCharity) private pure returns (uint256) {
-        return tAmount.sub(tFee).sub(tBurn).sub(tCharity);
+    function getTTransferAmount(uint256 tAmount, uint256 tFee, uint256 tBurn, uint256 tDonation) private pure returns (uint256) {
+        return tAmount.sub(tFee).sub(tBurn).sub(tDonation);
     }
     
     function _getRBasics(uint256 tAmount, uint256 tFee, uint256 currentRate) private pure returns (uint256, uint256) {
@@ -814,10 +815,10 @@ contract Falafel is Context, IBEP20, Ownable {
         return (rAmount, rFee);
     }
     
-    function _getRTransferAmount(uint256 rAmount, uint256 rFee, uint256 tBurn, uint256 tCharity, uint256 currentRate) private pure returns (uint256) {
+    function _getRTransferAmount(uint256 rAmount, uint256 rFee, uint256 tBurn, uint256 tDonation, uint256 currentRate) private pure returns (uint256) {
         uint256 rBurn = tBurn.mul(currentRate);
-        uint256 rCharity = tCharity.mul(currentRate);
-        uint256 rTransferAmount = rAmount.sub(rFee).sub(rBurn).sub(rCharity);
+        uint256 rDonation = tDonation.mul(currentRate);
+        uint256 rTransferAmount = rAmount.sub(rFee).sub(rBurn).sub(rDonation);
         return rTransferAmount;
     }
 
@@ -838,31 +839,31 @@ contract Falafel is Context, IBEP20, Ownable {
         return (rSupply, tSupply);
     }
 
-    function _sendToCharity(uint256 tCharity, address sender) private {
+    function _sendToDonation(uint256 tDonation, address sender) private {
         uint256 currentRate = _getRate();
-        uint256 rCharity = tCharity.mul(currentRate);
-        address currentCharity = _charity;
-        _rOwned[currentCharity] = _rOwned[currentCharity].add(rCharity);
-        _tOwned[currentCharity] = _tOwned[currentCharity].add(tCharity);
-        emit Transfer(sender, currentCharity, tCharity);
+        uint256 rDonation = tDonation.mul(currentRate);
+        address currentDonation = _DONATION;
+        _rOwned[currentDonation] = _rOwned[currentDonation].add(rDonation);
+        _tOwned[currentDonation] = _tOwned[currentDonation].add(tDonation);
+        emit Transfer(sender, currentDonation, tDonation);
     }
 
     function removeAllFee() private {
-        if(_TAX_FEE == 0 && _BURN_FEE == 0 && _CHARITY_FEE == 0) return;
+        if(_TAX_FEE == 0 && _BURN_FEE == 0 && _DONATION_FEE == 0) return;
         
         ORIG_TAX_FEE = _TAX_FEE;
         ORIG_BURN_FEE = _BURN_FEE;
-        ORIG_CHARITY_FEE = _CHARITY_FEE;
+        ORIG_DONATION_FEE = _DONATION_FEE;
         
         _TAX_FEE = 0;
         _BURN_FEE = 0;
-        _CHARITY_FEE = 0;
+        _DONATION_FEE = 0;
     }
     
     function restoreAllFee() private {
         _TAX_FEE = ORIG_TAX_FEE;
         _BURN_FEE = ORIG_BURN_FEE;
-        _CHARITY_FEE = ORIG_CHARITY_FEE;
+        _DONATION_FEE = ORIG_DONATION_FEE;
     }
     
     function _getTaxFee() private view returns(uint256) {
